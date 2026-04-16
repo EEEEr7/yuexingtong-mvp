@@ -11,6 +11,11 @@ SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
+from dotenv import load_dotenv
+
+# 允许本地放置 .env，提供开箱即用的环境变量加载（真实 key 不应提交）
+load_dotenv(dotenv_path=os.path.join(PROJECT_ROOT, ".env"), override=False)
+
 from eink_agent.pipeline import run_agent_flow_safe  # noqa: E402
 
 
