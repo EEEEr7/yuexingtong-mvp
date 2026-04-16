@@ -103,6 +103,36 @@ class Publisher(BaseAgent):
           </div>
         </div>
 
+        <!-- 视觉占位图：标题与摘要之间的“视觉锚点” -->
+        <div class="mt-4 rounded-3xl border border-white/15 bg-white/5 p-4">
+          <div
+            class="w-full flex items-center justify-center rounded-2xl border border-white/10 bg-white/5"
+            style="aspect-ratio: 16 / 5;"
+          >
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M4 7.5C4 6.119 5.119 5 6.5 5H17.5C18.881 5 20 6.119 20 7.5V16.5C20 17.881 18.881 19 17.5 19H6.5C5.119 19 4 17.881 4 16.5V7.5Z"
+                stroke="rgba(255,255,255,0.75)"
+                stroke-width="1.6"
+              />
+              <path
+                d="M8 11.5L10.2 9.3C10.6 8.9 11.3 8.9 11.7 9.3L20 17.6"
+                stroke="rgba(255,255,255,0.75)"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9 15C9.9 15.6 10.8 15.9 11.9 15.9C13.9 15.9 15.6 14.3 15.6 12.3C15.6 10.3 13.9 8.7 11.9 8.7"
+                stroke="rgba(255,255,255,0.35)"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+            <div class="sr-only">placeholder-image</div>
+          </div>
+        </div>
+
         <!-- 信息层级：摘要卡 -->
         <div class="mt-4 rounded-3xl border border-white/15 bg-white/5 p-5">
           <div class="text-white text-[13px] tracking-wide uppercase font-semibold text-white/85">

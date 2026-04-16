@@ -21,7 +21,7 @@ from eink_agent.pipeline import run_agent_flow_safe  # noqa: E402
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ReadStar Eink Agent Flow - Collector -> Refiner -> Publisher")
-    parser.add_argument("--url", type=str, required=True, help="输入一个 HTTP/HTTPS 网页 URL")
+    parser.add_argument("--url", type=str, required=True, help="输入一个 HTTP/HTTPS 网页 URL 或纯文本")
     parser.add_argument("--out-dir", type=str, default="output", help="输出目录（会生成 index.html + JSON）")
     args = parser.parse_args()
 
