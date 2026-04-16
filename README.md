@@ -10,7 +10,7 @@
 pip install -r requirements.txt
 ```
 
-2. 配置 LLM（OpenAI 兼容接口，例如 DeepSeek）
+2. 配置 LLM（OpenAI 兼容接口，例如 DeepSeek / DashScope）
 ```bash
 set OPENAI_API_KEY=你的_api_key
 set OPENAI_BASE_URL=https://api.deepseek.com
@@ -19,7 +19,13 @@ set OPENAI_MODEL=deepseek-chat
 
 说明：
 - `Collector`/`Publisher` 不依赖 LLM。
-- `Refiner` 依赖 `OPENAI_API_KEY`，并调用 `OPENAI_BASE_URL/v1/chat/completions`。
+- `Refiner` 依赖 `OPENAI_API_KEY`，并调用 chat.completions 接口。
+- `OPENAI_BASE_URL` 和可选的 `OPENAI_CHAT_COMPLETIONS_PATH` 用于适配不同供应商的 endpoint 规则。
+
+如果某些供应商路径规则与默认推断不一致，可以在 `.env` 里设置：
+- `OPENAI_CHAT_COMPLETIONS_PATH`（只写 path，可带 query）
+  - 例如：`/v1/chat/completions`
+  - 或：`/chat/completions`
 
 ## 启动命令
 
