@@ -88,7 +88,28 @@ class Refiner(BaseAgent):
             "请直接返回 JSON。"
         )
 
-        url = self.base_url.rstrip("/") + "/v1/chat/completions"
+        base = self.base_url.rstrip("/")
+
+        # 兼容更多供应商的核心：允许显式指定 chat.completions 路径
+        # - 如果你遇到某些供应商“路径规则不一致”（例如必须带 query 参数），
+        #   直接在 .env 里配置 OPENAI_CHAT_COMPLETIONS_PATH 即可。
+        # - 示例：
+        #   OPENAI_CHAT_COMPLETIONS_PATH=/v1/chat/completions
+        #   OPENAI_CHAT_COMPLETIONS_PATH=/chat/completions
+        #   OPENAI_CHAT_COMPLETIONS_PATH=/openai/deployments/<deployment>/chat/completions?api-version=2024-xx-xx
+        explicit_path = os.getenv("OPENAI_CHAT_COMPLETIONS_PATH")
+        if explicit_path:
+            url = base + "/" + explicit_path.lstrip("/")
+        else:
+            # 自动推断两类最常见约定：
+            # - base_url="https://api.xxx.com" -> /v1/chat/completions
+            # - base_url="https://dashscope.aliyuncs.com/compatible-mode/v1" -> /chat/completions
+            if base.endswith("/chat/completions"):
+                url = base
+            elif base.endswith("/v1"):
+                url = base + "/chat/completions"
+            else:
+                url = base + "/v1/chat/completions"
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload = {
             "model": self.model,
