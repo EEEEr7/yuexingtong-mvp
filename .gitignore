@@ -6,3 +6,5 @@ output/
 .env
 *.env
 *.log
+node_modules/
+frontend/dist/

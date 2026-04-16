@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -39,10 +40,30 @@ class Collector(BaseAgent):
                 raise ValueError(f"不支持的 URL 协议: {parsed.scheme}")
 
             # 1) 抓取页面 HTML
-            self._push_event(trace, level="info", message="fetch_page", data={"url": input_str})
-            resp = requests.get(
+            verify_ssl = os.getenv("COLLECTOR_SSL_VERIFY", "true").lower() not in {"0", "false", "no"}
+            trust_env = os.getenv("COLLECTOR_TRUST_ENV", "true").lower() not in {"0", "false", "no"}
+            if not verify_ssl:
+                self._push_event(
+                    trace,
+                    level="warning",
+                    message="ssl_verify_disabled",
+                    data={"reason": "COLLECTOR_SSL_VERIFY=false"},
+                )
+            if not trust_env:
+                self._push_event(
+                    trace,
+                    level="warning",
+                    message="requests_trust_env_disabled",
+                    data={"reason": "COLLECTOR_TRUST_ENV=false"},
+                )
+
+            self._push_event(trace, level="info", message="fetch_page", data={"url": input_str, "verifySSL": verify_ssl})
+            session = requests.Session()
+            session.trust_env = trust_env
+            resp = session.get(
                 input_str,
                 timeout=20,
+                verify=verify_ssl,
                 headers={
                     "User-Agent": "Mozilla/5.0 (compatible; eink-agent/1.0)",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

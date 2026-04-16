@@ -60,6 +60,7 @@ class Publisher(BaseAgent):
       body {{
         margin: 0;
         background: #000;
+        color: #fff;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Liberation Sans", sans-serif;
       }}
       .bgInk {{
@@ -67,6 +68,7 @@ class Publisher(BaseAgent):
           radial-gradient(1200px 600px at 10% 0%, rgba(255,255,255,0.10), rgba(255,255,255,0) 55%),
           radial-gradient(800px 500px at 90% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%),
           linear-gradient(180deg, #0b0b0b 0%, #141414 50%, #0a0a0a 100%);
+        color: #fff;
       }}
       /* 细腻但不依赖彩色的“信息图纹理” */
       .inkPattern {{
