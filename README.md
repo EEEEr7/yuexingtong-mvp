@@ -6,11 +6,13 @@
 ## 环境准备
 
 1. 安装依赖
+
 ```bash
 pip install -r requirements.txt
 ```
 
-2. 配置 LLM（OpenAI 兼容接口，例如 DeepSeek / DashScope）
+1. 配置 LLM（OpenAI 兼容接口，例如 DeepSeek / DashScope）
+
 ```bash
 set OPENAI_API_KEY=你的_api_key
 set OPENAI_BASE_URL=https://api.deepseek.com
@@ -18,11 +20,13 @@ set OPENAI_MODEL=deepseek-chat
 ```
 
 说明：
+
 - `Collector`/`Publisher` 不依赖 LLM。
 - `Refiner` 依赖 `OPENAI_API_KEY`，并调用 chat.completions 接口。
 - `OPENAI_BASE_URL` 和可选的 `OPENAI_CHAT_COMPLETIONS_PATH` 用于适配不同供应商的 endpoint 规则。
 
 如果某些供应商路径规则与默认推断不一致，可以在 `.env` 里设置：
+
 - `OPENAI_CHAT_COMPLETIONS_PATH`（只写 path，可带 query）
   - 例如：`/v1/chat/completions`
   - 或：`/chat/completions`
@@ -30,40 +34,47 @@ set OPENAI_MODEL=deepseek-chat
 ## 启动命令（前后端分离）
 
 ### 后端（FastAPI）
+
 ```bash
 uvicorn backend.app:app --reload --port 8000
 ```
 
 ### 前端（静态页面）
+
 在另一个终端运行：
+
 ```bash
 cd frontend
 python -m http.server 5173
 ```
+
 打开：`http://127.0.0.1:5173`
 
 ### CLI 一键运行
+
 ```bash
 python main.py --url "https://example.com"
 ```
 
 运行时会生成：
+
 - `output/{id}.json`
 - `output/index.html`（480x800 预览）
 
 ## Agent Flow 说明
 
 三段式串联：
+
 1. `Collector`
-   - 输入：URL
-   - 输出：提取后的纯文本（并写入 `trace`）
+  - 输入：URL
+  - 输出：提取后的纯文本（并写入 `trace`）
 2. `Refiner`
-   - 输入：Collector 文本
-   - 输出：结构化数据（`title/summary/tags/confidence`），并写入 `trace`
-   - 通过“严格 JSON 提示 + JSON 解析 + Pydantic schema 校验”保证输出合规
+  - 输入：Collector 文本
+  - 输出：结构化数据（`title/summary/tags/confidence`），并写入 `trace`
+  - 通过“严格 JSON 提示 + JSON 解析 + Pydantic schema 校验”保证输出合规
 3. `Publisher`
-   - 输入：标准内容包 JSON
-   - 输出：`480x800` 的单页卡片式 HTML（Tailwind CDN + 墨屏友好配色与卡片分区）
+  - 输入：标准内容包 JSON
+  - 输出：`480x800` 的单页卡片式 HTML（Tailwind CDN + 墨屏友好配色与卡片分区）
 
 ## 输入示例
 
@@ -107,18 +118,19 @@ URL：
 ## 异常处理策略（包含失败可追踪）
 
 1. Web 接口：`POST /api/run`
-   - 成功：返回 `ok=true` 的结构
-   - 失败：返回 `400`，并在响应体携带 `trace`
+  - 成功：返回 `ok=true` 的结构
+  - 失败：返回 `400`，并在响应体携带 `trace`
 2. Collector 错误
-   - URL 非法、超时、无法提取正文、文本为空等会中断流程
+  - URL 非法、超时、无法提取正文、文本为空等会中断流程
 3. Refiner 错误
-   - LLM 输出非 JSON 或缺字段：会进行一次“二次提示 + 重试”，仍不通过则失败
+  - LLM 输出非 JSON 或缺字段：会进行一次“二次提示 + 重试”，仍不通过则失败
 4. Publisher 错误
-   - 内容包 schema 不满足（Pydantic 校验失败）则失败
+  - 内容包 schema 不满足（Pydantic 校验失败）则失败
 
 ## 代码由 AI 生成 & 质量校验方式
 
 本实现中：
+
 - `Refiner` 的严格 JSON 提示词、JSON 提取与重试策略由 AI 辅助生成/调整
 - `Publisher` 的 `480x800` 墨屏卡片模板（Tailwind CDN + 黑白高对比信息分区）由 AI 辅助生成
 - 运行时质量校验：

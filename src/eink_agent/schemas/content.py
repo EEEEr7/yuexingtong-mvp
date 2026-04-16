@@ -32,7 +32,7 @@ class CollectorResult(BaseModel):
 class RefinerResult(BaseModel):
     title: str
     summary: str
-    tags: List[str] = Field(min_items=1, max_items=5)
+    tags: List[str] = Field(min_items=3, max_items=5)
     confidence: float = Field(ge=0, le=1)
 
 
@@ -40,7 +40,7 @@ class ContentPackage(BaseModel):
     id: str
     title: str
     summary: str
-    tags: List[str] = Field(min_items=1, max_items=5)
+    tags: List[str] = Field(min_items=3, max_items=5)
     source: str
     confidence: float = Field(ge=0, le=1)
     createdAt: datetime

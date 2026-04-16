@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # 让本地 src 包在不安装的情况下也能运行
@@ -24,9 +25,18 @@ from eink_agent.pipeline import run_agent_flow_safe  # noqa: E402
 
 app = FastAPI(title="ReadStar Eink Agent Flow (Collector -> Refiner -> Publisher)")
 
+# 配置CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class RunRequest(BaseModel):
-    url: str
+    input: str
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -544,7 +554,7 @@ def index() -> str:
 @app.post("/api/run")
 def run_api(req: RunRequest) -> Any:
     try:
-        result = run_agent_flow_safe(req.url, out_dir=os.getenv("OUT_DIR", "output"))
+        result = run_agent_flow_safe(req.input, out_dir=os.getenv("OUT_DIR", "output"))
         if not result.get("ok"):
             return JSONResponse(
                 {"error": result.get("error"), "trace": result.get("trace")},

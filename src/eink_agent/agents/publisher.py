@@ -45,7 +45,7 @@ class Publisher(BaseAgent):
             created_at_str = str(created_at)
 
         tag_html = "\n".join(
-            [f'<span class="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[12px] leading-none text-white/90">{t}</span>' for t in tags]
+            [f'<span class="inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[12px] leading-none text-white/95 font-medium">{t}</span>' for t in tags]
         )
 
         # 只做单页：严格 480x800
@@ -79,24 +79,26 @@ class Publisher(BaseAgent):
     </style>
   </head>
   <body>
-    <div class="bgInk inkPattern w-[480px] h-[800px] overflow-hidden mx-auto relative">
+    <div class="bgInk inkPattern w-[480px] h-[800px] overflow-y-auto overflow-x-hidden mx-auto relative">
       <div class="absolute inset-0 opacity-60 pointer-events-none"></div>
 
-      <!-- 顶部：标题与来源 -->
+      <!-- 顶部：标题与来源（主/副标题双层结构） -->
       <div class="px-6 pt-8">
         <div class="rounded-3xl border border-white/15 bg-white/5 backdrop-blur-sm p-5">
-          <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-2xl border border-white/20 bg-white/5 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 2L2 7l10 5 10-5-10-5Z" stroke="rgba(255,255,255,0.85)" stroke-width="1.6" />
-                <path d="M2 17l10 5 10-5" stroke="rgba(255,255,255,0.85)" stroke-width="1.6" stroke-linecap="round"/>
-                <path d="M2 12l10 5 10-5" stroke="rgba(255,255,255,0.85)" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
+          <div class="flex items-start gap-4">
+            <!-- 左侧装饰色块，增强“金句感” -->
+            <div class="flex flex-col items-center pt-1">
+              <div class="w-1 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-200 to-transparent"></div>
             </div>
 
             <div class="min-w-0 flex-1">
-              <div class="text-white text-[18px] leading-snug font-semibold break-words line-clamp-3">
+              <!-- 主标题（金句）：更大的字号与权重，自动换行 -->
+              <div class="text-[2rem] leading-snug font-extrabold text-white tracking-tight break-words">
                 {title}
+              </div>
+              <!-- 副标题：较小字号与半透明灰色，承接主标题 -->
+              <div class="mt-1 text-[1.1rem] leading-snug font-normal text-[rgba(255,255,255,0.7)] break-words">
+                {summary}
               </div>
               <div class="mt-2 text-white/70 text-[12px] leading-tight break-words">
                 来源：{source}
@@ -170,7 +172,7 @@ class Publisher(BaseAgent):
       </div>
 
       <!-- 底部：标签胶囊 + trace 简版 -->
-      <div class="absolute left-6 right-6 bottom-6">
+      <div class="px-6 mt-5 mb-6">
         <div class="rounded-3xl border border-white/15 bg-white/5 p-5">
           <div class="text-white/70 text-[12px] font-semibold">标签</div>
           <div class="mt-3 flex flex-wrap gap-2">
@@ -183,7 +185,7 @@ class Publisher(BaseAgent):
               <div class="text-white/60 text-[12px]">{len(pkg.trace.keys())} 段</div>
             </div>
             <div class="mt-2 text-white/60 text-[12px] leading-snug break-words">
-              {html.escape(", ".join(sorted(pkg.trace.keys())))}
+              {html.escape(", ".join(sorted(pkg.trace.keys())))}  
             </div>
           </div>
         </div>

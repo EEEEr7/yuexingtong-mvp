@@ -15,12 +15,12 @@
 低耦合主要靠两个“硬边界”：
 
 1. 明确输入输出
-   - `Collector`：`URL -> 纯文本`
-   - `Refiner`：`文本 -> 结构化字段（title/summary/tags/confidence）`
-   - `Publisher`：`内容包 -> 480x800 index.html`
+  - `Collector`：`URL -> 纯文本`
+  - `Refiner`：`文本 -> 结构化字段（title/summary/tags/confidence）`
+  - `Publisher`：`内容包 -> 480x800 index.html`
 2. Schema 强校验
-   - `RefinerResult` 与 `ContentPackage` 用 Pydantic schema 定义字段与范围
-   - 任何字段缺失/类型不对都会在运行时立刻失败，避免“悄悄生成错误内容”
+  - `RefinerResult` 与 `ContentPackage` 用 Pydantic schema 定义字段与范围
+  - 任何字段缺失/类型不对都会在运行时立刻失败，避免“悄悄生成错误内容”
 
 另外 `BaseAgent` 统一把关键执行事件写入 `trace`，Pipeline 只负责串联与最终合成。
 
@@ -53,4 +53,3 @@
 - Publisher 预留视觉占位槽位：在标题与摘要之间插入固定比例的封面/图文占位块，既可作为静态封面图入口，也能在不依赖真实图片时通过占位 SVG 保持版式完整性，增强 480x800 小屏的阅读趣味性
 
 模板不随输入自由变形，因此同一套视觉 token 可以在不同 URL 输入下保持一致的阅读体验。
-

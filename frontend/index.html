@@ -26,10 +26,23 @@
             <div class="sample-card">
               <div class="guide-title">示例输入</div>
               <div class="sample-actions">
-                <button class="btn-secondary" type="button" data-sample="LLM 是什么？用 3 句话解释并给 4 个标签。">填入：纯文本示例</button>
+                <button class="btn-secondary" type="button" data-sample="LLM（大语言模型）可以理解为“读过很多文本的语言大脑”，它通过学习大量书籍、网页和对话，掌握了人类语言的模式。你提问时，它会根据上下文预测最可能的下一个词，逐步生成完整回答。它很擅长总结、解释和创作，但也可能一本正经地说错话，所以重要信息仍需人工核对。">填入：科普版文本</button>
+                <button class="btn-secondary" type="button" data-sample="LLM 是基于 Transformer 架构训练的大规模语言模型，核心目标是通过上下文进行下一个 token 预测。它在预训练后可通过指令微调与对齐训练提升可用性，广泛应用于问答、内容生成、知识助手和代码补全。其主要风险包括幻觉、时效性不足和可解释性有限，因此在生产场景通常需要结合检索增强、规则约束与人工审核。">填入：面试版文本</button>
+                <button class="btn-secondary" type="button" data-sample="大语言模型（LLM）通常采用 Transformer 解码器结构，在海量语料上进行自监督预训练，学习 token 级条件概率分布。推理阶段模型按上下文自回归生成文本，能力边界受参数规模、训练数据质量、上下文窗口和对齐策略共同影响。工程落地中常用 RAG、工具调用、系统提示词约束与输出校验来降低幻觉并提升可控性与可靠性。">填入：技术版文本</button>
                 <button class="btn-secondary" type="button" data-sample="https://example.com">填入：URL 示例</button>
               </div>
               <div class="guide-text">点击按钮会自动填入输入框，你再点“运行”即可。</div>
+            </div>
+
+            <div class="design-card">
+              <div class="editor-label" style="margin-bottom: 6px;">设计说明（AI 布局决策）</div>
+              <div class="design-text">
+                <div>1) 三栏 25/50/25：中栏强调预览，左右对称减少干扰。</div>
+                <div>2) 480x800 固定画布：保证输出与设备分辨率一致。</div>
+                <div>3) 设备外壳：提供“真实硬件承载感”，增强演示可信度。</div>
+                <div>4) 右侧可编辑：让业务方快速微调标题/摘要/标签，即时观察效果。</div>
+                <div>5) 毛玻璃面板 + 轻阴影：降低工具感，提升 SaaS 演示质感。</div>
+              </div>
             </div>
 
             <div id="error" class="err" style="display:none;"></div>
@@ -96,17 +109,6 @@
               <div class="tag-add-row">
                 <input id="tagInput" placeholder="输入标签后回车" />
                 <button id="addTagBtn" class="btn-secondary" type="button">+ 添加标签</button>
-              </div>
-            </div>
-
-            <div class="design-card">
-              <div class="editor-label" style="margin-bottom: 6px;">设计说明（AI 布局决策）</div>
-              <div class="design-text">
-                <div>1) 三栏 25/50/25：中栏强调预览，左右对称减少干扰。</div>
-                <div>2) 480x800 固定画布：保证输出与设备分辨率一致。</div>
-                <div>3) 设备外壳：提供“真实硬件承载感”，增强演示可信度。</div>
-                <div>4) 右侧可编辑：让业务方快速微调标题/摘要/标签，即时观察效果。</div>
-                <div>5) 毛玻璃面板 + 轻阴影：降低工具感，提升 SaaS 演示质感。</div>
               </div>
             </div>
 
