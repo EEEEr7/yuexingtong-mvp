@@ -5,7 +5,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import requests
-from bs4 import BeautifulSoup
 
 from eink_agent.agents.base import BaseAgent
 from eink_agent.schemas.content import CollectorResult, Trace
@@ -25,6 +24,16 @@ class Collector(BaseAgent):
 
         # URL 输入：抓取网页并抽取纯文本
         if is_url:
+            # 仅在 URL 路径需要抓取/解析时才导入 BeautifulSoup，
+            # 这样纯文本输入无需该依赖也能运行。
+            try:
+                from bs4 import BeautifulSoup  # type: ignore
+            except ModuleNotFoundError as e:
+                raise ModuleNotFoundError(
+                    "缺少依赖 `beautifulsoup4`（用于 URL 抓取 HTML）。"
+                    "当前仅支持纯文本输入无需此依赖。"
+                ) from e
+
             parsed = urlparse(input_str)
             if parsed.scheme not in {"http", "https"}:
                 raise ValueError(f"不支持的 URL 协议: {parsed.scheme}")
