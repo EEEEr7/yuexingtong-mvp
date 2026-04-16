@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReadStar - Eink MVP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <section class="panel">
+        <div class="side-card full-height backdrop-blur bg-white/80 shadow-sm glass-panel">
+          <h2 class="section-title">输入区</h2>
+          <div class="sub-title">输入 URL 或纯文本，触发 Collector → Refiner → Publisher 完整链路。</div>
+
+          <div class="side-scroll">
+            <input id="inputBox" placeholder="https://example.com/xxx 或直接粘贴文本" />
+            <button id="runBtn">运行</button>
+
+            <div class="guide-card">
+              <div class="guide-title">操作指南</div>
+              <p class="guide-text">输入 URL 即可一键生成卡片；也支持直接粘贴纯文本内容，便于快速演示 480x800 墨屏效果。</p>
+            </div>
+
+            <div class="sample-card">
+              <div class="guide-title">示例输入</div>
+              <div class="sample-actions">
+                <button class="btn-secondary" type="button" data-sample="LLM 是什么？用 3 句话解释并给 4 个标签。">填入：纯文本示例</button>
+                <button class="btn-secondary" type="button" data-sample="https://example.com">填入：URL 示例</button>
+              </div>
+              <div class="guide-text">点击按钮会自动填入输入框，你再点“运行”即可。</div>
+            </div>
+
+            <div id="error" class="err" style="display:none;"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel main-panel">
+        <div class="main-card backdrop-blur bg-white/80 shadow-sm glass-panel">
+          <h2 class="section-title">480x800 核心预览</h2>
+          <div class="sub-title">居中展示最终卡片，直接评估墨屏设备观感。</div>
+
+          <div class="preview-shell">
+            <div class="device-topbar">
+              <div class="device-speaker"></div>
+            </div>
+            <div class="preview-scale">
+              <div class="screen-frame">
+                <div id="loadingOverlay" class="loading-overlay">
+                  <div class="loading-box">
+                    <div class="spinner"></div>
+                    <div>正在通过百炼 Qwen3 提取精华...</div>
+                  </div>
+                </div>
+                <div class="screen-stage">
+                  <div id="screenTransform" class="screen-transform">
+                    <iframe id="preview" width="480" height="800"></iframe>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="device-buttons">
+              <div class="device-btn"></div>
+              <div class="device-btn"></div>
+            </div>
+          </div>
+          <div class="preview-note">浅灰墨水屏设备外观 + 嵌入式屏幕 + 底部双按键。</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="side-card full-height backdrop-blur bg-white/80 shadow-sm glass-panel">
+          <h2 class="section-title">内容包</h2>
+          <div class="sub-title">右侧可编辑核心字段，并实时映射到中间卡片。</div>
+          <div id="debugStatus" class="debug-status"><strong>状态：</strong>等待运行。</div>
+
+          <div class="side-scroll">
+            <div class="edit-card">
+              <div class="edit-card-title">标题与摘要编辑区</div>
+              <div class="editor-group">
+                <label class="editor-label" for="titleEditor">Title（标题）</label>
+                <input id="titleEditor" placeholder="运行后自动填充标题" />
+              </div>
+
+              <div class="editor-group">
+                <label class="editor-label" for="summaryEditor">Summary（摘要）</label>
+                <textarea id="summaryEditor" placeholder="运行后自动填充摘要"></textarea>
+              </div>
+            </div>
+
+            <div class="editor-group">
+              <label class="editor-label">Tags（标签）</label>
+              <div id="tagList" class="tag-list"></div>
+              <div class="tag-add-row">
+                <input id="tagInput" placeholder="输入标签后回车" />
+                <button id="addTagBtn" class="btn-secondary" type="button">+ 添加标签</button>
+              </div>
+            </div>
+
+            <div class="design-card">
+              <div class="editor-label" style="margin-bottom: 6px;">设计说明（AI 布局决策）</div>
+              <div class="design-text">
+                <div>1) 三栏 25/50/25：中栏强调预览，左右对称减少干扰。</div>
+                <div>2) 480x800 固定画布：保证输出与设备分辨率一致。</div>
+                <div>3) 设备外壳：提供“真实硬件承载感”，增强演示可信度。</div>
+                <div>4) 右侧可编辑：让业务方快速微调标题/摘要/标签，即时观察效果。</div>
+                <div>5) 毛玻璃面板 + 轻阴影：降低工具感，提升 SaaS 演示质感。</div>
+              </div>
+            </div>
+
+            <details id="debugPanel" class="debug-panel">
+              <summary class="debug-link">原始数据清单</summary>
+              <div class="debug-subtitle">默认折叠，仅在排查问题时展开查看 JSON。</div>
+              <pre id="jsonOut">等待输入...</pre>
+            </details>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+

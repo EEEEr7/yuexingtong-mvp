@@ -120,40 +120,98 @@ class Refiner(BaseAgent):
             "temperature": 0.2,
         }
 
+        def fallback_refine(text_: str) -> RefinerResult:
+            """
+            本地兜底：在无法访问 LLM 时仍能产出结构化字段，保证端到端可演示。
+            """
+            cleaned = re.sub(r"\s+", " ", text_).strip()
+            # title：取开头片段
+            title = cleaned[:18]
+            # summary：取更长片段
+            summary = cleaned[:220]
+            if len(cleaned) > len(summary):
+                summary = summary.rstrip("，。,.!?;；:") + "…"
+
+            # tags：用“连续中文串（长度>=2）”做粗粒度词频
+            words = re.findall(r"[\u4e00-\u9fff]{2,}", cleaned)
+            if not words:
+                tags = ["内容精炼", "墨屏展示", "卡片信息", "阅读体验"]
+            else:
+                freq: dict[str, int] = {}
+                for w in words:
+                    freq[w] = freq.get(w, 0) + 1
+                # 取出现最多的 3~5 个
+                sorted_words = sorted(freq.items(), key=lambda x: (-x[1], x[0]))
+                tags = [w for w, _ in sorted_words[:5]]
+                if len(tags) < 3:
+                    tags += ["内容精炼", "墨屏展示", "卡片信息", "阅读体验"]
+                    # 去重并裁剪到 3~5
+                    seen = set()
+                    tags = [t for t in tags if not (t in seen or seen.add(t))]
+                    tags = tags[:5]
+
+            return RefinerResult(
+                title=title or "内容精炼结果",
+                summary=summary or "（摘要生成失败时的兜底摘要）",
+                tags=tags[:5] if len(tags) >= 3 else ["内容精炼", "墨屏展示", "卡片信息"],
+                confidence=0.25,
+            )
+
         last_err: Optional[str] = None
         for attempt in range(1, self.retry_count + 1):
             self._push_event(trace, level="info", message="llm_call", data={"attempt": attempt, "url": url})
-            resp = requests.post(url, headers=headers, json=payload, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
-
-            content = (
-                data.get("choices", [{}])[0]
-                .get("message", {})
-                .get("content", "")
-            )
-            self._push_event(trace, level="info", message="llm_response_received", data={"contentLen": len(content)})
-
             try:
-                obj = extract_json_object(content)
-                result = RefinerResult.model_validate(obj)
-                return result
+                resp = requests.post(url, headers=headers, json=payload, timeout=60)
+                resp.raise_for_status()
+                data = resp.json()
+
+                content = (
+                    data.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                )
+                self._push_event(
+                    trace,
+                    level="info",
+                    message="llm_response_received",
+                    data={"contentLen": len(content)},
+                )
+
+                try:
+                    obj = extract_json_object(content)
+                    result = RefinerResult.model_validate(obj)
+                    return result
+                except Exception as e:
+                    last_err = str(e)
+                    self._push_event(
+                        trace,
+                        level="warning",
+                        message="json_parse_failed",
+                        data={"attempt": attempt, "error": last_err, "rawHead": content[:120]},
+                    )
+
+                    # 二次提示：强制 JSON、禁止包裹
+                    payload["messages"].append(
+                        {
+                            "role": "user",
+                            "content": "再次强调：只输出严格 JSON 对象，不要任何额外字符或 Markdown。",
+                        }
+                    )
             except Exception as e:
                 last_err = str(e)
                 self._push_event(
                     trace,
                     level="warning",
-                    message="json_parse_failed",
-                    data={"attempt": attempt, "error": last_err, "rawHead": content[:120]},
+                    message="llm_call_failed",
+                    data={"attempt": attempt, "error": last_err},
                 )
 
-                # 二次提示：强制 JSON、禁止包裹
-                payload["messages"].append(
-                    {
-                        "role": "user",
-                        "content": "再次强调：只输出严格 JSON 对象，不要任何额外字符或 Markdown。",
-                    }
-                )
-
-        raise ValueError(f"Refiner 失败：无法解析或校验 LLM 输出为 schema。lastErr={last_err}")
+        # 连 LLM 都失败了：用本地兜底保证 Publisher 可演示
+        self._push_event(
+            trace,
+            level="warning",
+            message="fallback_refiner_used",
+            data={"error": last_err},
+        )
+        return fallback_refine(text)
 

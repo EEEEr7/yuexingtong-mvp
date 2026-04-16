@@ -27,15 +27,22 @@ set OPENAI_MODEL=deepseek-chat
   - 例如：`/v1/chat/completions`
   - 或：`/chat/completions`
 
-## 启动命令
+## 启动命令（前后端分离）
 
-### 方式 A：极简 Web（推荐演示）
+### 后端（FastAPI）
 ```bash
-uvicorn server:app --reload --port 8000
+uvicorn backend.app:app --reload --port 8000
 ```
-打开：`http://localhost:8000`
 
-### 方式 B：CLI 一键运行
+### 前端（静态页面）
+在另一个终端运行：
+```bash
+cd frontend
+python -m http.server 5173
+```
+打开：`http://127.0.0.1:5173`
+
+### CLI 一键运行
 ```bash
 python main.py --url "https://example.com"
 ```
@@ -118,6 +125,12 @@ URL：
   - `RefinerResult` / `ContentPackage` 使用 Pydantic schema 强校验
   - `Refiner` 的 JSON 解析失败会触发重试
   - 输出最终必须包含：`id/title/summary/tags/source/confidence/createdAt/trace`
+
+## 开发日志（Bug 与修复全过程）
+
+- 统一日志文件：`DEV_LOG.md`
+- 记录内容：问题现象、根因、修复动作、涉及文件、验证结果
+- 维护约定：后续每次代码变更后都追加日志，保证过程可追溯
 
 ## 演示视频提纲（3-8 分钟）
 
