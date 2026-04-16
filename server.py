@@ -50,9 +50,9 @@ def index() -> str:
   </head>
   <body>
     <h2>阅星曈：Collector → Refiner → Publisher</h2>
-    <div class="muted">输入 URL 后，生成标准内容包 JSON + 480x800 墨屏卡片（index.html 预览）。</div>
+    <div class="muted">输入 URL 或纯文本后，生成标准内容包 JSON + 480x800 墨屏卡片（index.html 预览）。</div>
 
-    <input id="urlInput" placeholder="https://example.com/xxx" />
+    <input id="urlInput" placeholder="https://example.com/xxx 或直接粘贴文本" />
     <div>
       <button onclick="run()">运行</button>
     </div>
@@ -74,7 +74,7 @@ def index() -> str:
       async function run() {
         document.getElementById('error').style.display = 'none';
         const url = document.getElementById('urlInput').value.trim();
-        if (!url) { document.getElementById('error').innerText = '请输入 URL'; document.getElementById('error').style.display = 'block'; return; }
+        if (!url) { document.getElementById('error').innerText = '请输入 URL 或纯文本'; document.getElementById('error').style.display = 'block'; return; }
 
         document.getElementById('jsonOut').innerText = '运行中...';
         document.getElementById('preview').srcdoc = '';
