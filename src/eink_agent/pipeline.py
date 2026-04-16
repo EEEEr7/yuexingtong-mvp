@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from typing import Dict, Tuple
+
+from eink_agent.agents.collector import Collector
+from eink_agent.agents.publisher import Publisher
+from eink_agent.agents.refiner import Refiner
+from eink_agent.schemas.content import CollectorResult, ContentPackage, RefinerResult, Trace, utc_now
+
+
+def build_content_package(*, collected: CollectorResult, refined: RefinerResult, trace: Trace) -> ContentPackage:
+    return ContentPackage(
+        id=uuid.uuid4().hex,
+        title=refined.title,
+        summary=refined.summary,
+        tags=refined.tags,
+        source=collected.source,
+        confidence=refined.confidence,
+        createdAt=utc_now(),
+        trace=trace,
+    )
+
+
+def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, object]:
+    """
+    Safe version:
+    - 成功：返回 package/indexHtml/paths，并返回 trace（也写入 package.trace）
+    - 失败：返回 error + trace（便于定位 Collector/Refiner/Publisher 出错点）
+    """
+    os.makedirs(out_dir, exist_ok=True)
+
+    trace: Trace = {}
+    try:
+        collector = Collector()
+        collected: CollectorResult = collector.execute(url, trace=trace)
+
+        refiner = Refiner()
+        refined = refiner.execute(collected, trace=trace)
+
+        pkg = build_content_package(collected=collected, refined=refined, trace=trace)
+        publisher = Publisher()
+        index_html = publisher.execute(pkg, trace=trace)
+
+        # 落盘：按步骤要求至少生成 index.html
+        json_path = os.path.join(out_dir, f"{pkg.id}.json")
+        html_path = os.path.join(out_dir, "index.html")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(pkg.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(index_html)
+
+        return {
+            "ok": True,
+            "package": pkg.model_dump(mode="json"),
+            "indexHtml": index_html,
+            "paths": {"json": json_path, "index_html": html_path},
+            "trace": {k: [ev.model_dump(mode="json") for ev in v] for k, v in trace.items()},
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": str(e),
+            "trace": {k: [ev.model_dump(mode="json") for ev in v] for k, v in trace.items()},
+        }
+
+
+def run_agent_flow(url: str, *, out_dir: str = "output") -> Tuple[ContentPackage, str, Dict[str, str]]:
+    """
+    Collector -> Refiner -> Publisher
+
+    Returns:
+      - content package (validated)
+      - html string (index.html)
+      - output paths
+    """
+    result = run_agent_flow_safe(url, out_dir=out_dir)
+    if not result.get("ok"):
+        raise RuntimeError(result.get("error"))
+
+    pkg = ContentPackage.model_validate(result["package"])
+    return pkg, result["indexHtml"], result["paths"]  # type: ignore[return-value]
+
