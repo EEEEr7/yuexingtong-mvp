@@ -309,3 +309,40 @@
   - 落盘 JSON 增加 `cost` 字段后，若下游用严格 Schema 校验整文件需 `pop("cost")` 或允许额外字段。
   - trace 兜底与真实 billing 口径不同，界面已用文字区分；回滚可移除前端 `inferCostFromPackageTrace` 与 pipeline 写盘中的 `cost` 合并。
 
+### [2026-04-17 09:55] 设备预览双机身轮播 + 白底墨字主题 + 命名更新
+
+- 需求/问题：
+  - 用户提供了真机参考图，要求预览区增加一套黑色机身，并用轮播展示两种机身外观。
+  - 当前预览中，墨水屏内容区与灰色外壳之间存在一圈多余的白色边框，观感不贴近真机。
+  - 用户进一步要求浅色机身展示“白底墨字”内容主题，深色机身展示“黑底白字”主题，并将机身命名更新为「雾灰白」「星穹黑」。
+- 根因分析：
+  - 旧预览只有单个 iframe 与单套浅色机身壳体，无法表达不同产品配色。
+  - `screen-frame` 使用浅色背景和额外内边距，导致屏幕与机身之间出现非真实的亮边。
+  - Publisher 仅输出一套深色 HTML，浅色机身下仍显示黑底卡片，主题与硬件配色不匹配。
+- 修改内容：
+  - `src/eink_agent/agents/publisher.py`：
+    - 改为同时生成 `dark`（黑底白字）与 `light`（白底墨字）两套 480x800 HTML。
+    - `light` 主题使用纸感浅底、深色正文、浅底标签与更轻的边框阴影，贴近墨水屏正片观感。
+  - `src/eink_agent/pipeline.py`：
+    - `Publisher.execute()` 返回 `(indexHtml, indexHtmlLight)`。
+    - 新增 `output/index-light.html` 落盘，并在返回值 `paths` 中加入 `index_html_light`。
+  - `backend/app.py`、`server.py`：
+    - `/api/run` 成功响应新增 `indexHtmlLight` 字段，供前端分别渲染浅/深两种机身内容。
+  - `frontend/index.html`：
+    - 中间预览区升级为双机身轮播结构，包含左右切换按钮与底部切换标签。
+    - 命名统一为「雾灰白」「星穹黑」。
+  - `frontend/styles.css`：
+    - 新增轮播、深浅两款外壳、按钮与切换标签样式。
+    - 去掉 `screen-frame` 的浅色填充与额外内边距，收紧屏幕与外壳的衔接，消除多余白边。
+  - `frontend/app.js`：
+    - 新增双 iframe 同步渲染逻辑：雾灰白使用 `indexHtmlLight`，星穹黑使用 `indexHtml`。
+    - 编辑区标题/摘要/标签修改时，分别写回浅色与深色两套 HTML。
+    - 初始化轮播与双屏自适应缩放。
+- 验证结果：
+  - 本地启动后端 `127.0.0.1:8000` 与前端 `127.0.0.1:5173` 成功。
+  - 调用 `/api/run` 可返回 `indexHtmlLight`，前端可在轮播中切换查看雾灰白/星穹黑两款机身，且内容主题与机身配色一致。
+  - 预览区屏幕与机身之间的多余白边已去除，整体更接近用户提供的真机参考图。
+- 风险与回滚点：
+  - Publisher 现在返回双 HTML，若有旧调用方仅按单字符串接收，需要同步兼容 `indexHtmlLight`。
+  - 前端编辑区依赖主题特定 class 做字符串替换；若后续调整 Publisher 模板类名，需同步更新 `frontend/app.js` 中的 `applyEditorToHtml`。
+

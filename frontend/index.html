@@ -63,33 +63,69 @@
       <section class="panel main-panel">
         <div class="main-card backdrop-blur bg-white/80 shadow-sm glass-panel">
           <h2 class="section-title">480x800 核心预览</h2>
-          <div class="sub-title">居中展示最终卡片，直接评估墨屏设备观感。</div>
+          <div class="sub-title">居中展示最终卡片；轮播切换雾灰白 / 星穹黑两款外壳，贴近真机观感。</div>
 
-          <div class="preview-shell">
-            <div class="device-topbar">
-              <div class="device-speaker"></div>
-            </div>
-            <div class="preview-scale">
-              <div class="screen-frame">
-                <div id="loadingOverlay" class="loading-overlay">
-                  <div class="loading-box">
-                    <div class="spinner"></div>
-                    <div>正在通过百炼 Qwen3 提取精华...</div>
+          <div class="device-carousel" id="deviceCarousel">
+            <div class="carousel-viewport">
+              <div id="loadingOverlay" class="loading-overlay carousel-loading-overlay">
+                <div class="loading-box">
+                  <div class="spinner"></div>
+                  <div>正在通过百炼 Qwen3 提取精华...</div>
+                </div>
+              </div>
+              <div class="carousel-track" id="deviceCarouselTrack">
+                <div class="carousel-slide">
+                  <div class="preview-shell preview-shell--light" aria-label="雾灰白外壳">
+                    <div class="device-topbar">
+                      <div class="device-speaker"></div>
+                    </div>
+                    <div class="preview-scale">
+                      <div class="screen-frame">
+                        <div class="screen-stage">
+                          <div class="screen-transform">
+                            <iframe id="preview" title="卡片预览（雾灰白设备）" width="480" height="800"></iframe>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="device-buttons">
+                      <div class="device-btn"></div>
+                      <div class="device-btn"></div>
+                    </div>
                   </div>
                 </div>
-                <div class="screen-stage">
-                  <div id="screenTransform" class="screen-transform">
-                    <iframe id="preview" width="480" height="800"></iframe>
+                <div class="carousel-slide">
+                  <div class="preview-shell preview-shell--dark" aria-label="星穹黑外壳">
+                    <div class="device-topbar">
+                      <div class="device-speaker"></div>
+                    </div>
+                    <div class="preview-scale">
+                      <div class="screen-frame">
+                        <div class="screen-stage">
+                          <div class="screen-transform">
+                            <iframe id="previewB" title="卡片预览（星穹黑设备）" width="480" height="800"></iframe>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="device-buttons">
+                      <div class="device-btn"></div>
+                      <div class="device-btn"></div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="device-buttons">
-              <div class="device-btn"></div>
-              <div class="device-btn"></div>
+            <div class="carousel-toolbar">
+              <button type="button" class="carousel-btn" id="carouselPrev" aria-label="上一款外壳">‹</button>
+              <div class="carousel-dots" id="carouselDots" role="tablist" aria-label="设备外观切换">
+                <button type="button" class="carousel-dot is-active" data-slide="0" aria-selected="true" aria-label="雾灰白墨水屏">雾灰白</button>
+                <button type="button" class="carousel-dot" data-slide="1" aria-selected="false" aria-label="星穹黑墨水屏">星穹黑</button>
+              </div>
+              <button type="button" class="carousel-btn" id="carouselNext" aria-label="下一款外壳">›</button>
             </div>
           </div>
-          <div class="preview-note">浅灰墨水屏设备外观 + 嵌入式屏幕 + 底部双按键。</div>
+          <div class="preview-note">雾灰白：参考浅色机身 + 白底墨字屏；星穹黑：深色机身 + 黑底白字墨屏。左右箭头或下方标签切换。屏幕与外壳之间已收紧，无多余白边。</div>
         </div>
       </section>
 

@@ -8,7 +8,6 @@ const jsonOut = document.getElementById("jsonOut");
 const preview = document.getElementById("preview");
 const debugStatus = document.getElementById("debugStatus");
 const loadingOverlay = document.getElementById("loadingOverlay");
-const screenTransform = document.getElementById("screenTransform");
 
 const titleEditor = document.getElementById("titleEditor");
 const summaryEditor = document.getElementById("summaryEditor");
@@ -17,12 +16,78 @@ const tagInput = document.getElementById("tagInput");
 const addTagBtn = document.getElementById("addTagBtn");
 
 let lastPackage = null;
-let lastIndexHtml = "";
+let lastIndexHtmlDark = "";
+let lastIndexHtmlLight = "";
 let tagsState = [];
 let isRunning = false;
 
 function setLoading(show) {
-  loadingOverlay.style.display = show ? "flex" : "none";
+  if (loadingOverlay) {
+    loadingOverlay.style.display = show ? "flex" : "none";
+  }
+}
+
+/** 浅灰设备 = 白底墨字（light）；酷黑设备 = 黑底白字（dark） */
+function setPreviewIframes(htmlLight, htmlDark) {
+  const l = htmlLight ?? "";
+  const d = htmlDark ?? "";
+  if (preview) preview.srcdoc = l;
+  const b = document.getElementById("previewB");
+  if (b) b.srcdoc = d;
+}
+
+/**
+ * 将右侧编辑区写回 HTML（两套主题分别匹配 Publisher 产出的 class）
+ */
+function applyEditorToHtml(html, { title, summary, tags }, variant) {
+  let patched = html;
+  patched = patched.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
+
+  if (variant === "light") {
+    patched = patched.replace(
+      /(<div class="text-\[2rem\] leading-snug font-extrabold text-stone-900 tracking-tight break-words">\s*)[\s\S]*?(\s*<\/div>)/,
+      `$1${escapeHtml(title)}$2`
+    );
+    patched = patched.replace(
+      /(<div class="mt-1 text-\[1\.1rem\] leading-snug font-normal text-stone-600 break-words">\s*)[\s\S]*?(\s*<\/div>)/,
+      `$1${escapeHtml(summary)}$2`
+    );
+    const tagHtml = tags
+      .map(
+        (tag) =>
+          `<span class="inline-flex items-center rounded-full border border-stone-400/70 bg-stone-100 px-3 py-1.5 text-[12px] leading-none text-stone-900 font-medium">${escapeHtml(
+            tag
+          )}</span>`
+      )
+      .join("");
+    patched = patched.replace(
+      /(<div class="mt-3 flex flex-wrap gap-2">\s*)[\s\S]*?(\s*<\/div>)/,
+      `$1${tagHtml}$2`
+    );
+  } else {
+    patched = patched.replace(
+      /(<div class="text-\[2rem\] leading-snug font-extrabold text-white tracking-tight break-words">\s*)[\s\S]*?(\s*<\/div>)/,
+      `$1${escapeHtml(title)}$2`
+    );
+    patched = patched.replace(
+      /(<div class="mt-1 text-\[1\.1rem\] leading-snug font-normal text-\[rgba\(255,255,255,0\.7\)\] break-words">\s*)[\s\S]*?(\s*<\/div>)/,
+      `$1${escapeHtml(summary)}$2`
+    );
+    const tagHtml = tags
+      .map(
+        (tag) =>
+          `<span class="inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[12px] leading-none text-white/95 font-medium">${escapeHtml(
+            tag
+          )}</span>`
+      )
+      .join("");
+    patched = patched.replace(
+      /(<div class="mt-3 flex flex-wrap gap-2">\s*)[\s\S]*?(\s*<\/div>)/,
+      `$1${tagHtml}$2`
+    );
+  }
+
+  return patched;
 }
 
 function escapeHtml(str) {
@@ -213,52 +278,62 @@ function addTag(raw) {
 }
 
 function syncPreview() {
-  if (!lastIndexHtml || !lastPackage) return;
+  if (!lastIndexHtmlDark || !lastPackage) return;
 
   const title = titleEditor.value.trim() || lastPackage.title || "";
   const summary = summaryEditor.value.trim() || lastPackage.summary || "";
   const tags = tagsState.filter(Boolean);
 
-  let patched = lastIndexHtml;
-  patched = patched.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
-  patched = patched.replace(
-    /(<div class="text-\[2rem\] leading-snug font-extrabold text-white tracking-tight break-words">\s*)[\s\S]*?(\s*<\/div>)/,
-    `$1${escapeHtml(title)}$2`
-  );
-  patched = patched.replace(
-    /(<div class="mt-1 text-\[1\.1rem\] leading-snug font-normal text-\[rgba\(255,255,255,0\.7\)\] break-words">\s*)[\s\S]*?(\s*<\/div>)/,
-    `$1${escapeHtml(summary)}$2`
-  );
+  const baseLight = lastIndexHtmlLight || lastIndexHtmlDark;
+  const patchedDark = applyEditorToHtml(lastIndexHtmlDark, { title, summary, tags }, "dark");
+  const patchedLight = applyEditorToHtml(baseLight, { title, summary, tags }, "light");
 
-  const tagHtml = tags
-    .map(
-      (tag) =>
-        `<span class="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[12px] leading-none text-white/90">${escapeHtml(
-          tag
-        )}</span>`
-    )
-    .join("");
-  patched = patched.replace(
-    /(<div class="mt-3 flex flex-wrap gap-2">\s*)[\s\S]*?(\s*<\/div>)/,
-    `$1${tagHtml}$2`
-  );
-
-  preview.srcdoc = patched;
+  setPreviewIframes(patchedLight, patchedDark);
 }
 
 function fitScreen() {
-  const frame = document.querySelector(".screen-frame");
-  if (!frame || !screenTransform) return;
+  document.querySelectorAll(".carousel-slide .screen-frame").forEach((frame) => {
+    const el = frame.querySelector(".screen-transform");
+    if (!el) return;
+    const padding = 20;
+    const availableW = Math.max(0, frame.clientWidth - padding);
+    const availableH = Math.max(0, frame.clientHeight - padding);
+    const scaleW = availableW / 480;
+    const scaleH = availableH / 800;
+    const maxScale = 1.18;
+    const scale = Math.min(maxScale, scaleW, scaleH);
+    el.style.transform = `scale(${scale})`;
+  });
+}
 
-  const padding = 20;
-  const availableW = Math.max(0, frame.clientWidth - padding);
-  const availableH = Math.max(0, frame.clientHeight - padding);
-  const scaleW = availableW / 480;
-  const scaleH = availableH / 800;
-  // 允许适度放大，让 480x800 在中栏更有冲击力
-  const maxScale = 1.18;
-  const scale = Math.min(maxScale, scaleW, scaleH);
-  screenTransform.style.transform = `scale(${scale})`;
+function initDeviceCarousel() {
+  const track = document.getElementById("deviceCarouselTrack");
+  const prevBtn = document.getElementById("carouselPrev");
+  const nextBtn = document.getElementById("carouselNext");
+  const dotsWrap = document.getElementById("carouselDots");
+  if (!track || !prevBtn || !nextBtn || !dotsWrap) return;
+
+  const slides = track.querySelectorAll(".carousel-slide");
+  const dots = dotsWrap.querySelectorAll(".carousel-dot");
+  const n = Math.max(1, slides.length);
+  let idx = 0;
+
+  function applySlide(i) {
+    idx = (i + n) % n;
+    track.style.transform = `translateX(-${(idx / n) * 100}%)`;
+    dots.forEach((d, j) => {
+      const on = j === idx;
+      d.classList.toggle("is-active", on);
+      d.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    fitScreen();
+  }
+
+  prevBtn.addEventListener("click", () => applySlide(idx - 1));
+  nextBtn.addEventListener("click", () => applySlide(idx + 1));
+  dots.forEach((d, j) => {
+    d.addEventListener("click", () => applySlide(j));
+  });
 }
 
 async function run() {
@@ -286,7 +361,7 @@ async function run() {
   }
 
   jsonOut.innerText = "运行中...";
-  preview.srcdoc = "";
+  setPreviewIframes("", "");
   fitScreen();
 
   try {
@@ -332,10 +407,13 @@ async function run() {
     renderCost(costUi);
 
     lastPackage = data.package || null;
-    lastIndexHtml = data.indexHtml || "";
+    lastIndexHtmlDark = data.indexHtml || "";
+    lastIndexHtmlLight = data.indexHtmlLight || data.indexHtml || "";
     jsonOut.innerText = JSON.stringify(
       {
         package: data.package,
+        indexHtml: data.indexHtml,
+        indexHtmlLight: data.indexHtmlLight ?? null,
         cost: data.cost ?? null,
         costDisplay: costUi,
         costSource: data.cost != null ? "api" : costUi?._fromTrace ? "trace_fallback" : "none",
@@ -343,7 +421,7 @@ async function run() {
       null,
       2
     );
-    preview.srcdoc = data.indexHtml;
+    setPreviewIframes(lastIndexHtmlLight, lastIndexHtmlDark);
     updateEditorsFromPackage(data.package || {});
     debugStatus.innerHTML =
       "<strong>状态：</strong>生成完成。标题：" +
@@ -381,6 +459,7 @@ window.addEventListener("resize", fitScreen);
 window.addEventListener("load", () => {
   fitScreen();
   renderCost(null);
+  initDeviceCarousel();
 });
 
 // 左侧示例输入快捷填充

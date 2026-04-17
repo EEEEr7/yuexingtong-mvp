@@ -64,6 +64,7 @@ def run_api(req: RunRequest) -> Any:
                 "paths": result.get("paths"),
                 "package": result.get("package"),
                 "indexHtml": result.get("indexHtml"),
+                "indexHtmlLight": result.get("indexHtmlLight"),
                 "trace": result.get("trace"),
                 "cost": result.get("cost"),
             }

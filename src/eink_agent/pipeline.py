@@ -46,7 +46,7 @@ def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, objec
 
         pkg = build_content_package(collected=collected, refined=refined, trace=trace)
         publisher = Publisher()
-        index_html = publisher.execute(pkg, trace=trace)
+        index_html, index_html_light = publisher.execute(pkg, trace=trace)
 
         flow_wall_ms = (time.perf_counter() - flow_t0) * 1000.0
         cost = snapshot_costs()
@@ -61,17 +61,25 @@ def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, objec
         # 落盘：按步骤要求至少生成 index.html（JSON 内附带 cost，便于归档与对照 API 响应）
         json_path = os.path.join(out_dir, f"{pkg.id}.json")
         html_path = os.path.join(out_dir, "index.html")
+        html_light_path = os.path.join(out_dir, "index-light.html")
         record = {**pkg.model_dump(mode="json"), "cost": cost}
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(record, f, ensure_ascii=False, indent=2)
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(index_html)
+        with open(html_light_path, "w", encoding="utf-8") as f:
+            f.write(index_html_light)
 
         return {
             "ok": True,
             "package": pkg.model_dump(mode="json"),
             "indexHtml": index_html,
-            "paths": {"json": json_path, "index_html": html_path},
+            "indexHtmlLight": index_html_light,
+            "paths": {
+                "json": json_path,
+                "index_html": html_path,
+                "index_html_light": html_light_path,
+            },
             "trace": {k: [ev.model_dump(mode="json") for ev in v] for k, v in trace.items()},
             "cost": cost,
         }
