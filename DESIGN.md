@@ -53,3 +53,48 @@
 - Publisher 预留视觉占位槽位：在标题与摘要之间插入固定比例的封面/图文占位块，既可作为静态封面图入口，也能在不依赖真实图片时通过占位 SVG 保持版式完整性，增强 480x800 小屏的阅读趣味性
 
 模板不随输入自由变形，因此同一套视觉 token 可以在不同 URL 输入下保持一致的阅读体验。
+
+## 6. 端到端流程图（Mermaid）
+
+```mermaid
+graph TD
+    classDef primary fill:#2563eb,color:#fff,stroke:#1e40af
+    classDef secondary fill:#f8fafc,stroke:#334155,stroke-width:2px
+    classDef ai fill:#8b5cf6,color:#fff,stroke:#6d28d9
+
+    Start([用户输入 URL/文本]) --> Collector[Collector: 内容提取]
+
+    subgraph Collector_Logic [数据采集层]
+        Collector -->|URL| Fetch[抓取网页 HTML]
+        Fetch --> Parse[解析与正文抽取]
+        Collector -->|direct-text| Direct[直接使用输入文本]
+        Parse --> Clean[正文清洗与去噪]
+        Direct --> Clean
+        Clean --> RawContent[输出: 结构化原始文本]
+    end
+
+    RawContent --> Refiner[Refiner: AI 核心精修]
+
+    subgraph Refiner_Logic [AI 语义处理层]
+        Refiner -->|Step 1: LLM| LLM_Task[生成 title/summary/初始 tags]
+        LLM_Task -->|Step 2: 候选池| PhrasePool[候选短语池（用于补足标签）]
+        PhrasePool -->|Step 3: Embedding| Embedding[DashScope Embedding 向量化]
+        Embedding -->|Step 4: 排序与多样性| MMR[相似度重排 + MMR 筛选]
+        MMR -->|Step 5: 标题治理| Style[宝玉风格双层标题/清洗与去冗余]
+    end
+
+    Style -->|ContentPackage| Publisher[Publisher: 多端适配发布]
+
+    subgraph Publisher_Display [展现层]
+        Publisher -->|dark| EInkDark[480x800 星穹黑（黑底白字）]
+        Publisher -->|light| EInkLight[480x800 雾灰白（白底墨字）]
+        Publisher -->|同步| Preview[Web 管理后台实时联动]
+    end
+
+    EInkDark --> End([生成任务完成])
+    EInkLight --> End
+
+    class Start,End primary
+    class Collector,Publisher,Fetch,Parse,Clean,Direct secondary
+    class Refiner,LLM_Task,PhrasePool,Embedding,MMR,Style ai
+```
