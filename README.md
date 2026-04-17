@@ -1,7 +1,7 @@
 # 阅星曈 MVP（Collector -> Refiner -> Publisher）
 
 输入：URL（HTTP/HTTPS 网页）  
-输出：标准 JSON 内容包（含 `trace`） + 适配 `480x800` 的墨屏卡片式 `index.html`
+输出：标准 JSON 内容包（含 `trace` / `cost`） + 适配 `480x800` 的双主题墨屏卡片 HTML（`index.html` / `index-light.html`）
 
 ## 环境准备
 
@@ -31,6 +31,27 @@ set OPENAI_MODEL=deepseek-chat
   - 例如：`/v1/chat/completions`
   - 或：`/chat/completions`
 
+## 技术选型（Why these）
+
+- **后端**：FastAPI + Uvicorn
+  - 原因：接口定义清晰、调试友好（`/docs`）、本地演示成本低。
+- **前端**：纯静态 HTML/CSS/JS + `python -m http.server`
+  - 原因：避免引入构建链（Vite/Node）以降低交付门槛；演示环境更稳定。
+- **LLM 接口**：OpenAI Compatible（兼容 DeepSeek / DashScope 等）
+  - 原因：统一 `chat.completions` 调用形态，便于替换供应商与模型。
+- **Schema 校验**：Pydantic v2
+  - 原因：Refiner 输出必须结构化且可验证；运行时强校验可快速暴露错误。
+- **展示渲染**：Tailwind CDN + 内联样式
+  - 原因：在 480x800 固定画布下快速迭代版式；保持黑白高对比与统一风格。
+
+## 依赖（核心）
+
+- **Python**：建议 3.10+（以 `requirements.txt` 为准）
+- **后端**：`fastapi`、`uvicorn`、`python-dotenv`
+- **Schema**：`pydantic`
+- **抓取/解析**：`requests`（URL 抓取）；`beautifulsoup4`（HTML 解析，必要时才触发）
+- **LLM/Embedding**：`openai`（兼容接口调用）、`dashscope`（用于 embedding 与部分模型接入）
+
 ## 启动命令（前后端分离）
 
 ### 后端（FastAPI）
@@ -59,7 +80,8 @@ python main.py --url "https://example.com"
 运行时会生成：
 
 - `output/{id}.json`
-- `output/index.html`（480x800 预览）
+- `output/index.html`（星穹黑：黑底白字预览）
+- `output/index-light.html`（雾灰白：白底墨字预览）
 
 ## Agent Flow 说明
 
@@ -74,7 +96,9 @@ python main.py --url "https://example.com"
   - 通过“严格 JSON 提示 + JSON 解析 + Pydantic schema 校验”保证输出合规
 3. `Publisher`
   - 输入：标准内容包 JSON
-  - 输出：`480x800` 的单页卡片式 HTML（Tailwind CDN + 墨屏友好配色与卡片分区）
+  - 输出：`480x800` 的双主题单页卡片式 HTML
+    - `index.html`：星穹黑机身对应的黑底白字版本
+    - `index-light.html`：雾灰白机身对应的白底墨字版本
 
 ## 输入示例
 
@@ -127,12 +151,24 @@ URL：
 4. Publisher 错误
   - 内容包 schema 不满足（Pydantic 校验失败）则失败
 
+## 已知问题 / 限制（交付前说明）
+
+- **成本统计口径**：
+  - `cost.tokens*` 依赖供应商返回 usage；若供应商不返回 usage，Token 显示为“未知”，但仍会显示调用次数与耗时。
+  - 前端在缺少 `cost` 时会从 `trace` 反推耗时等数字用于展示（口径与 billing 不完全一致，界面会注明）。
+- **网络与抓取稳定性**：
+  - URL 抓取受 TLS/代理环境影响，项目通过 `.env` 覆盖系统代理变量降低演示风险，但极端网络环境仍可能失败。
+- **主题编辑同步**：
+  - 右侧编辑区通过字符串替换更新 `indexHtmlLight/indexHtml`（依赖 Publisher 模板中的 class 名）；若后续改动模板类名，需同步更新前端替换规则。
+- **演示视频**：
+  - README 提供提纲，但演示视频成片需要另行录制（本次交付不包含）。
+
 ## 代码由 AI 生成 & 质量校验方式
 
 本实现中：
 
 - `Refiner` 的严格 JSON 提示词、JSON 提取与重试策略由 AI 辅助生成/调整
-- `Publisher` 的 `480x800` 墨屏卡片模板（Tailwind CDN + 黑白高对比信息分区）由 AI 辅助生成
+- `Publisher` 的 `480x800` 双主题墨屏卡片模板（星穹黑 / 雾灰白）由 AI 辅助生成
 - 运行时质量校验：
   - `RefinerResult` / `ContentPackage` 使用 Pydantic schema 强校验
   - `Refiner` 的 JSON 解析失败会触发重试
@@ -146,7 +182,7 @@ URL：
 
 ## 演示视频提纲（3-8 分钟）
 
-1. 30 秒：展示输入 URL，回到页面展示 `JSON + 480x800 index.html`
+1. 30 秒：展示输入 URL，回到页面展示 `JSON + 480x800 双主题预览（雾灰白 / 星穹黑）`
 2. 90 秒：讲清三段式 Agent Flow 与每段输入输出边界
 3. 60 秒：讲墨屏适配原则（固定画布、分区、胶囊标签、低细线）
 4. 60 秒：讲 trace 与失败可追踪（展示失败时 trace 回传）
