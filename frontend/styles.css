@@ -83,6 +83,7 @@ button:disabled {
 }
 .guide-title { font-size: 14px; font-weight: 800; color: #111827; margin: 0 0 8px; }
 .guide-text { margin: 0; font-size: 15px; color: #6b7280; line-height: 1.7; }
+.guide-muted { margin: 8px 0 0; font-size: 13px; color: #9ca3af; line-height: 1.6; }
 
 .err { color: #b00020; white-space: pre-wrap; margin-top: 14px; font-size: 14px; }
 

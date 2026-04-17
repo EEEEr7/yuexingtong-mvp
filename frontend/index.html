@@ -45,6 +45,16 @@
               </div>
             </div>
 
+            <div id="costCard" class="guide-card">
+              <div class="guide-title">本次运行成本（估算）</div>
+              <div id="costBody" class="guide-text">
+                点击「运行」后将显示具体参数：
+                <div>1) Token：LLM / Embedding（若供应商返回 usage；否则显示“未知”）</div>
+                <div>2) 调用次数：LLM 次数、Embedding 次数</div>
+                <div>3) 耗时：端到端总耗时；外部 API 耗时（LLM + Embedding 累计）</div>
+              </div>
+            </div>
+
             <div id="error" class="err" style="display:none;"></div>
           </div>
         </div>

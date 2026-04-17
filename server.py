@@ -557,7 +557,11 @@ def run_api(req: RunRequest) -> Any:
         result = run_agent_flow_safe(req.input, out_dir=os.getenv("OUT_DIR", "output"))
         if not result.get("ok"):
             return JSONResponse(
-                {"error": result.get("error"), "trace": result.get("trace")},
+                {
+                    "error": result.get("error"),
+                    "trace": result.get("trace"),
+                    "cost": result.get("cost"),
+                },
                 status_code=400,
             )
 
@@ -567,6 +571,7 @@ def run_api(req: RunRequest) -> Any:
                 "package": result.get("package"),
                 "indexHtml": result.get("indexHtml"),
                 "trace": result.get("trace"),
+                "cost": result.get("cost"),
             }
         )
     except Exception as e:

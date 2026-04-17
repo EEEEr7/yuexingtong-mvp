@@ -34,6 +34,145 @@ function escapeHtml(str) {
     .replaceAll("'", "&#39;");
 }
 
+function formatMs(ms) {
+  const n = Number(ms);
+  if (!Number.isFinite(n)) return "-";
+  if (n < 1000) return `${Math.round(n)} ms`;
+  return `${(n / 1000).toFixed(2)} s`;
+}
+
+/** 每次渲染重新解析，避免脚本执行时 DOM 未就绪导致永久拿不到 #costBody */
+function resolveCostElements() {
+  const card = document.getElementById("costCard");
+  if (!card) return { card: null, body: null };
+  let body = document.getElementById("costBody");
+  if (!body) {
+    body = card.querySelector(".guide-text");
+  }
+  return { card, body };
+}
+
+/**
+ * 当接口未返回 cost 时，从 package.trace 反推可展示数字（耗时、LLM 次数、评分里的近似 token）。
+ * 与后端 cost_tracker 的 billing token 不是同一口径，界面会注明。
+ */
+function inferCostFromPackageTrace(pkg) {
+  const trace = pkg?.trace;
+  if (!trace || typeof trace !== "object") return null;
+
+  let llmCalls = 0;
+  let embCalls = 0;
+  let flowMs = 0;
+  let refinerMs = 0;
+  let approxTokens = null;
+
+  for (const key of Object.keys(trace)) {
+    const arr = trace[key];
+    if (!Array.isArray(arr)) continue;
+    const isRefiner = key === "refiner";
+    for (const ev of arr) {
+      if (!ev || typeof ev !== "object") continue;
+      const msg = ev.message;
+      if (msg === "llm_call") llmCalls++;
+      if (typeof msg === "string" && msg.toLowerCase().includes("embedding")) embCalls++;
+      if (msg === "success" && ev.durationMs != null) {
+        const d = Number(ev.durationMs);
+        if (Number.isFinite(d)) {
+          flowMs += d;
+          if (isRefiner) refinerMs += d;
+        }
+      }
+      if (msg === "confidence_scored" && ev.data) {
+        const st = ev.data.sourceTokenCount;
+        const pt = ev.data.predictedTokenCount;
+        if (st != null || pt != null) approxTokens = { source: st, predicted: pt };
+      }
+    }
+  }
+
+  if (llmCalls === 0 && flowMs === 0 && !approxTokens) return null;
+
+  const apiWall = refinerMs > 0 ? refinerMs : flowMs;
+  return {
+    _fromTrace: true,
+    llm: { calls: llmCalls, tokens: null, wallMsTotal: apiWall },
+    embedding: { calls: embCalls, tokens: null, wallMsTotal: 0 },
+    totalWallMs: apiWall,
+    flowWallMs: flowMs,
+    tokensTotal: null,
+    _approxTokens: approxTokens,
+  };
+}
+
+function pickCostForDisplay(apiCost, pkg) {
+  if (apiCost != null && typeof apiCost === "object") return apiCost;
+  return inferCostFromPackageTrace(pkg) ?? null;
+}
+
+function renderCost(cost) {
+  const { card: costCard, body: costBody } = resolveCostElements();
+  if (!costCard || !costBody) return;
+  if (!cost) {
+    costBody.innerHTML = `
+      点击「运行」后将显示具体参数：
+      <div>1) Token：LLM / Embedding（若供应商返回 usage；否则显示“未知”）</div>
+      <div>2) 调用次数：LLM 次数、Embedding 次数</div>
+      <div>3) 耗时：端到端总耗时；外部 API 耗时（LLM + Embedding 累计）</div>
+    `.trim();
+    costCard.style.display = "block";
+    return;
+  }
+
+  const llm = cost.llm || {};
+  const emb = cost.embedding || {};
+  const formatTok = (n) => (n == null ? "未知" : String(n));
+  const fromTrace = Boolean(cost._fromTrace);
+  const approx = cost._approxTokens;
+
+  const tokensTotal = cost.tokensTotal;
+  let tokenSummary;
+  let tokenBreakdown;
+  if (fromTrace) {
+    tokenSummary = "1) Token（供应商 billing）：未知（接口未返回 cost 时无法统计）";
+    if (approx && (approx.source != null || approx.predicted != null)) {
+      tokenBreakdown = `　trace 评分近似：源词元 ${approx.source ?? "-"} · 预测词元 ${approx.predicted ?? "-"}（非 API usage，仅供对照）`;
+    } else {
+      tokenBreakdown = "　分项：LLM 未知 · Embedding 未知";
+    }
+  } else {
+    tokenSummary =
+      tokensTotal == null
+        ? "1) Token：总计 未知（供应商未返回 usage）"
+        : `1) Token：总计 ${tokensTotal}`;
+    tokenBreakdown = `　分项：LLM ${formatTok(llm.tokens)} · Embedding ${formatTok(emb.tokens)}`;
+  }
+
+  const callsLine = `2) 调用次数：LLM ${llm.calls ?? 0} · Embedding ${emb.calls ?? 0}`;
+
+  const flow = formatMs(cost.flowWallMs);
+  const llmMs = formatMs(llm.wallMsTotal);
+  const embMs = formatMs(emb.wallMsTotal);
+  const extTotalMs = Number(cost.totalWallMs);
+  const extAgg = Number.isFinite(extTotalMs)
+    ? formatMs(extTotalMs)
+    : formatMs((Number(llm.wallMsTotal) || 0) + (Number(emb.wallMsTotal) || 0));
+
+  const timeLine = `3) 耗时：端到端 ${flow}；外部 API ${extAgg}（LLM ${llmMs} · Embedding ${embMs}）`;
+  const timeNote = fromTrace
+    ? "说明：数字由 trace 反推（各阶段 success 的 durationMs 累计等），与后端 cost 字段口径可能不一致；重启/更新 API 后可显示精确 cost。"
+    : "口径：端到端为整条流水线墙钟时间；外部 API 为 LLM/Embedding 请求墙钟时间之和（不含纯本地解析等）。";
+
+  costBody.innerHTML = `
+    <div>${escapeHtml(tokenSummary)}</div>
+    <div>${escapeHtml(tokenBreakdown)}</div>
+    <div>${escapeHtml(callsLine)}</div>
+    <div>${escapeHtml(timeLine)}</div>
+    <div class="guide-muted">${escapeHtml(timeNote)}</div>
+  `.trim();
+
+  costCard.style.display = "block";
+}
+
 function updateEditorsFromPackage(pkg) {
   titleEditor.value = pkg?.title || "";
   summaryEditor.value = pkg?.summary || "";
@@ -83,11 +222,11 @@ function syncPreview() {
   let patched = lastIndexHtml;
   patched = patched.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
   patched = patched.replace(
-    /(<div class="text-white text-\[18px\] leading-snug font-semibold break-words line-clamp-3">\s*)[\s\S]*?(\s*<\/div>)/,
+    /(<div class="text-\[2rem\] leading-snug font-extrabold text-white tracking-tight break-words">\s*)[\s\S]*?(\s*<\/div>)/,
     `$1${escapeHtml(title)}$2`
   );
   patched = patched.replace(
-    /(<div class="mt-2 text-white\/92 text-\[14px\] leading-relaxed break-words line-clamp-8">\s*)[\s\S]*?(\s*<\/div>)/,
+    /(<div class="mt-1 text-\[1\.1rem\] leading-snug font-normal text-\[rgba\(255,255,255,0\.7\)\] break-words">\s*)[\s\S]*?(\s*<\/div>)/,
     `$1${escapeHtml(summary)}$2`
   );
 
@@ -130,6 +269,7 @@ async function run() {
   runBtn.innerText = "运行中...";
 
   errorBox.style.display = "none";
+  renderCost(null);
   debugStatus.innerHTML = "<strong>状态：</strong>运行中，正在生成内容包与卡片预览...";
   setLoading(true);
 
@@ -156,17 +296,53 @@ async function run() {
       body: JSON.stringify({ input }),
     });
 
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      errorBox.innerText = "接口返回的不是合法 JSON（请确认后端地址为 " + API_BASE + " 且服务正常）";
+      errorBox.style.display = "block";
+      debugStatus.innerHTML = "<strong>状态：</strong>解析响应失败。";
+      renderCost(null);
+      return;
+    }
+
     if (!res.ok) {
       errorBox.innerText = data.error || "运行失败";
       errorBox.style.display = "block";
       debugStatus.innerHTML = "<strong>状态：</strong>运行失败，请查看错误信息或展开 Debug JSON。";
+      const costUi = pickCostForDisplay(data.cost, data.package);
+      renderCost(costUi);
+      jsonOut.innerText = JSON.stringify(
+        {
+          package: data.package ?? null,
+          cost: data.cost ?? null,
+          costDisplay: costUi,
+          error: data.error,
+          trace: data.trace,
+        },
+        null,
+        2
+      );
       return;
     }
 
+    // 先刷新成本区，避免后续步骤抛错导致数字不显示（无 cost 时用 trace 兜底）
+    const costUi = pickCostForDisplay(data.cost, data.package);
+    renderCost(costUi);
+
     lastPackage = data.package || null;
     lastIndexHtml = data.indexHtml || "";
-    jsonOut.innerText = JSON.stringify(data.package, null, 2);
+    jsonOut.innerText = JSON.stringify(
+      {
+        package: data.package,
+        cost: data.cost ?? null,
+        costDisplay: costUi,
+        costSource: data.cost != null ? "api" : costUi?._fromTrace ? "trace_fallback" : "none",
+      },
+      null,
+      2
+    );
     preview.srcdoc = data.indexHtml;
     updateEditorsFromPackage(data.package || {});
     debugStatus.innerHTML =
@@ -178,6 +354,11 @@ async function run() {
       (data.package?.source || "-");
 
     setTimeout(fitScreen, 0);
+  } catch (e) {
+    errorBox.innerText = e?.message || String(e);
+    errorBox.style.display = "block";
+    debugStatus.innerHTML = "<strong>状态：</strong>请求异常。";
+    renderCost(null);
   } finally {
     setLoading(false);
     runBtn.disabled = false;
@@ -197,7 +378,10 @@ tagInput.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("resize", fitScreen);
-window.addEventListener("load", fitScreen);
+window.addEventListener("load", () => {
+  fitScreen();
+  renderCost(null);
+});
 
 // 左侧示例输入快捷填充
 document.querySelectorAll("[data-sample]").forEach((btn) => {

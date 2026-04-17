@@ -141,7 +141,7 @@
 - 本地文件输入（当前主要是 URL + 纯文本）
 - 演示视频成片（已具备提纲）
 - Skill 在运行时的自动编排接入（当前以设计原则应用为主）
-- Docker 一键运行、主题切换、多模板、成本统计等加分项
+- Docker 一键运行、主题切换、多模板 Publisher 等加分项
 
 ---
 
@@ -248,7 +248,7 @@
   - 标题风格更依赖 LLM 输出质量，如有需要可在 prompt 中进一步收紧模板（例如强制“对象 + 结论”结构）。
   - 如需回滚视觉调整，仅需恢复 `publisher.py` 中标题样式与根容器的 `overflow-y-auto` 改动；如需回滚标题结构化与 emoji 装饰，恢复 `refiner.py` 中对应逻辑即可。
 
-### [2026-04-17 02:30] 宝玉风格双层标题（主/副标题）与 Emoji 装饰 + 480x800 标签区域溢出修复
+### [2026-04-17 03:20] 宝玉风格双层标题（主/副标题）与 Emoji 装饰 + 480x800 标签区域溢出修复
 
 - 需求/问题：
   - 标题层级单一，缺少“金句 + 一行解释”的视觉结构，不符合宝玉系信息图风格。
@@ -282,4 +282,30 @@
 - 风险与回滚点：
   - 标题 emoji 装饰逻辑基于关键词启发式，存在少量误判风险，如需回滚可移除 `_decorate_title_with_emoji` 调用，并恢复原始标题映射逻辑。
   - 溢出处理仅放宽了纵向滚动，不影响 480x800 画布的整体结构；如需完全恢复固定高度，可改回 `overflow-hidden`。
+
+### [2026-04-17 09:30] 运行成本统计（后端 cost + 前端展示 + trace 兜底）与落盘 JSON 附带 cost
+
+- 需求/问题：
+  - 用户希望在「输入区」看到本次运行的 Token、LLM/Embedding 调用次数、端到端与外部 API 耗时；成本卡片需放在「设计说明」下方。
+  - 部分环境接口未返回顶层 `cost` 或前端未刷新脚本时，运行后仍只看到占位说明，没有数字。
+  - 用户要求将 `cost` 一并写入 `output/{id}.json`，便于与页面/API 对照归档。
+- 根因分析：
+  - 早期仅有占位 UI，无后端聚合字段；后续虽增加 `cost`，若 `getElementById` 在脚本执行时未取到节点会导致 `renderCost` 永久早退。
+  - 仅依赖 `data.cost` 时，旧后端或代理剥离字段会导致无数据可渲染。
+  - 落盘原先只写 `ContentPackage`，未包含成本快照。
+- 修改内容：
+  - `src/eink_agent/cost_tracker.py`（新增）：用 `ContextVar` 累积 LLM/Embedding 调用次数、tokens（供应商返回 usage 时）、墙钟时间；提供 `reset_costs` / `snapshot_costs` / `record_llm_call` / `record_embedding_call`。
+  - `src/eink_agent/pipeline.py`：流程结束处组装 `cost`（含 `flowWallMs`、`tokensTotal` 等）；写 JSON 时为 `{ **package 字段, "cost": cost }`。
+  - `src/eink_agent/agents/refiner.py`：在 LLM/Embedding 请求完成后调用 cost 记录（与现有 DashScope/OpenAI 兼容逻辑衔接）。
+  - `backend/app.py`：`/api/run` 成功与失败响应均附带 `cost`。
+  - `frontend/index.html`：成本卡片移至设计说明卡片之后；占位文案列出具体参数项。
+  - `frontend/app.js`：每次渲染重新解析 `#costCard`/`#costBody`；成功解析响应后优先调用 `renderCost`；`pickCostForDisplay` 在无 `cost` 时用 `inferCostFromPackageTrace` 从 `package.trace` 反推耗时/LLM 次数/评分近似 token（注明非 billing）；Debug JSON 增加 `costDisplay` 与 `costSource`。
+  - `frontend/styles.css`：`.guide-muted` 用于成本区口径说明。
+  - `server.py`：如内嵌演示页与 API 同源，同步响应中的 `cost` 字段（若该文件此前已改）。
+- 验证结果：
+  - `POST /api/run` 响应体含 `cost`；`output/*.json` 根级含 `cost`。
+  - 前端强刷后运行：有 API `cost` 时显示精确项；无 `cost` 时仍可从 trace 看到耗时与调用次数等兜底数字。
+- 风险与回滚点：
+  - 落盘 JSON 增加 `cost` 字段后，若下游用严格 Schema 校验整文件需 `pop("cost")` 或允许额外字段。
+  - trace 兜底与真实 billing 口径不同，界面已用文字区分；回滚可移除前端 `inferCostFromPackageTrace` 与 pipeline 写盘中的 `cost` 合并。
 

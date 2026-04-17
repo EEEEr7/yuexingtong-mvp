@@ -8,6 +8,7 @@ from typing import Any, Iterable, Optional
 import requests
 
 from eink_agent.agents.base import BaseAgent
+from eink_agent.cost_tracker import perf_ms, record_embedding_call, record_llm_call
 from eink_agent.schemas.content import CollectorResult, RefinerResult, Trace
 
 
@@ -372,7 +373,13 @@ def normalize_tags(*, raw_tags: Any, title: str, text: str) -> list[str]:
             # 文档向量：取标题 + 正文头部（足够表达主题，且控制 token）
             doc_text = blob[:2000]
             inputs: list[str] = [doc_text] + candidates
+            t0 = perf_ms()
             resp = TextEmbedding.call(model="text-embedding-v3", input=inputs, text_type="document")
+            wall = perf_ms() - t0
+            usage = getattr(resp, "usage", None)
+            if usage is None and isinstance(resp, dict):
+                usage = resp.get("usage")
+            record_embedding_call(wall_ms=wall, usage=usage)
             if getattr(resp, "status_code", None) != 200:
                 return []
 
@@ -726,9 +733,11 @@ class Refiner(BaseAgent):
         for attempt in range(1, self.retry_count + 1):
             self._push_event(trace, level="info", message="llm_call", data={"attempt": attempt, "url": url})
             try:
+                t0 = perf_ms()
                 resp = requests.post(url, headers=headers, json=payload, timeout=60)
                 resp.raise_for_status()
                 data = resp.json()
+                record_llm_call(wall_ms=perf_ms() - t0, usage=data.get("usage"))
 
                 content = (
                     data.get("choices", [{}])[0]

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from typing import Dict, Tuple
 
 from eink_agent.agents.collector import Collector
 from eink_agent.agents.publisher import Publisher
 from eink_agent.agents.refiner import Refiner
+from eink_agent.cost_tracker import reset_costs, snapshot_costs
 from eink_agent.schemas.content import CollectorResult, ContentPackage, RefinerResult, Trace, utc_now
 
 
@@ -33,6 +35,8 @@ def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, objec
     os.makedirs(out_dir, exist_ok=True)
 
     trace: Trace = {}
+    reset_costs()
+    flow_t0 = time.perf_counter()
     try:
         collector = Collector()
         collected: CollectorResult = collector.execute(url, trace=trace)
@@ -44,11 +48,22 @@ def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, objec
         publisher = Publisher()
         index_html = publisher.execute(pkg, trace=trace)
 
-        # 落盘：按步骤要求至少生成 index.html
+        flow_wall_ms = (time.perf_counter() - flow_t0) * 1000.0
+        cost = snapshot_costs()
+        cost["flowWallMs"] = round(flow_wall_ms, 2)
+        llm_t = cost["llm"].get("tokens")
+        emb_t = cost["embedding"].get("tokens")
+        if llm_t is not None or emb_t is not None:
+            cost["tokensTotal"] = int((llm_t or 0) + (emb_t or 0))
+        else:
+            cost["tokensTotal"] = None
+
+        # 落盘：按步骤要求至少生成 index.html（JSON 内附带 cost，便于归档与对照 API 响应）
         json_path = os.path.join(out_dir, f"{pkg.id}.json")
         html_path = os.path.join(out_dir, "index.html")
+        record = {**pkg.model_dump(mode="json"), "cost": cost}
         with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(pkg.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
+            json.dump(record, f, ensure_ascii=False, indent=2)
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(index_html)
 
@@ -58,12 +73,23 @@ def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, objec
             "indexHtml": index_html,
             "paths": {"json": json_path, "index_html": html_path},
             "trace": {k: [ev.model_dump(mode="json") for ev in v] for k, v in trace.items()},
+            "cost": cost,
         }
     except Exception as e:
+        flow_wall_ms = (time.perf_counter() - flow_t0) * 1000.0
+        cost = snapshot_costs()
+        cost["flowWallMs"] = round(flow_wall_ms, 2)
+        llm_t = cost["llm"].get("tokens")
+        emb_t = cost["embedding"].get("tokens")
+        if llm_t is not None or emb_t is not None:
+            cost["tokensTotal"] = int((llm_t or 0) + (emb_t or 0))
+        else:
+            cost["tokensTotal"] = None
         return {
             "ok": False,
             "error": str(e),
             "trace": {k: [ev.model_dump(mode="json") for ev in v] for k, v in trace.items()},
+            "cost": cost,
         }
 
 
