@@ -1,4 +1,11 @@
 import sys
+"""提交信息中文映射过滤脚本。
+
+用途：
+- 在 stdin 读入完整 commit message；
+- 如果首行（subject）命中 mapping，则替换为中文；
+- 其余正文原样保留输出到 stdout。
+"""
 
 
 mapping = {
@@ -10,6 +17,7 @@ mapping = {
 
 
 def main() -> None:
+    """脚本主入口：执行“读入 -> 匹配 -> 替换 -> 输出”流程。"""
     msg = sys.stdin.read()
     if not msg:
         return

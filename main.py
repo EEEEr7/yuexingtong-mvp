@@ -1,4 +1,11 @@
 from __future__ import annotations
+"""
+CLI 入口：用于命令行单次执行 Agent Flow。
+
+典型场景：
+- 本地调试时快速验证后端逻辑；
+- 无需启动前端，直接生成 output 目录下的 JSON 与 HTML。
+"""
 
 import argparse
 import json
@@ -20,6 +27,7 @@ from eink_agent.pipeline import run_agent_flow_safe  # noqa: E402
 
 
 def main() -> None:
+    """解析命令行参数并执行安全流水线；失败时输出 trace 后退出非 0。"""
     parser = argparse.ArgumentParser(description="ReadStar Eink Agent Flow - Collector -> Refiner -> Publisher")
     parser.add_argument("--url", type=str, required=True, help="输入一个 HTTP/HTTPS 网页 URL 或纯文本")
     parser.add_argument("--out-dir", type=str, default="output", help="输出目录（会生成 index.html + JSON）")

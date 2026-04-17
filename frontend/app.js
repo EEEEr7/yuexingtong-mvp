@@ -1,3 +1,12 @@
+/**
+ * 前端主控制脚本。
+ *
+ * 负责：
+ * 1) 调用后端 /api/run；
+ * 2) 渲染双设备预览（雾灰白/星穹黑）；
+ * 3) 支持右侧编辑区实时回写 title/summary/tags；
+ * 4) 展示成本统计（接口 cost + trace 兜底）。
+ */
 // Backend API base (front/back 分离)
 const API_BASE = "http://127.0.0.1:8000";
 
@@ -91,6 +100,7 @@ function applyEditorToHtml(html, { title, summary, tags }, variant) {
 }
 
 function escapeHtml(str) {
+  // 统一做 HTML 转义，避免把用户输入直接拼进 innerHTML 带来 XSS 风险。
   return String(str ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -100,6 +110,7 @@ function escapeHtml(str) {
 }
 
 function formatMs(ms) {
+  // 统一毫秒显示格式：<1000 用 ms，>=1000 用秒并保留两位小数。
   const n = Number(ms);
   if (!Number.isFinite(n)) return "-";
   if (n < 1000) return `${Math.round(n)} ms`;
@@ -170,6 +181,7 @@ function inferCostFromPackageTrace(pkg) {
 }
 
 function pickCostForDisplay(apiCost, pkg) {
+  // 优先使用后端精准 cost；缺失时退化为 trace 推断结果，保证界面始终有可解释信息。
   if (apiCost != null && typeof apiCost === "object") return apiCost;
   return inferCostFromPackageTrace(pkg) ?? null;
 }
@@ -239,6 +251,7 @@ function renderCost(cost) {
 }
 
 function updateEditorsFromPackage(pkg) {
+  // 每次运行后把内容包同步到编辑区，作为“可微调”的初始态。
   titleEditor.value = pkg?.title || "";
   summaryEditor.value = pkg?.summary || "";
   tagsState = Array.isArray(pkg?.tags) ? [...pkg.tags] : [];
@@ -246,6 +259,7 @@ function updateEditorsFromPackage(pkg) {
 }
 
 function renderTags() {
+  // 标签区使用状态数组渲染，删除按钮会回写 state 并刷新双主题预览。
   tagList.innerHTML = "";
   tagsState.forEach((t, idx) => {
     const pill = document.createElement("div");
@@ -268,6 +282,7 @@ function renderTags() {
 }
 
 function addTag(raw) {
+  // 新标签去空/去重后写入状态，随后触发预览同步。
   const t = (raw || "").trim();
   if (!t) return;
   if (tagsState.includes(t)) return;
@@ -278,6 +293,7 @@ function addTag(raw) {
 }
 
 function syncPreview() {
+  // 使用同一份编辑态，分别回写 dark/light 两套 HTML，保持主题一致性。
   if (!lastIndexHtmlDark || !lastPackage) return;
 
   const title = titleEditor.value.trim() || lastPackage.title || "";
@@ -292,6 +308,7 @@ function syncPreview() {
 }
 
 function fitScreen() {
+  // 根据容器尺寸动态计算缩放，保证 480x800 在不同屏幕都能完整展示。
   document.querySelectorAll(".carousel-slide .screen-frame").forEach((frame) => {
     const el = frame.querySelector(".screen-transform");
     if (!el) return;
@@ -307,6 +324,7 @@ function fitScreen() {
 }
 
 function initDeviceCarousel() {
+  // 简单轮播：通过 translateX 切换设备外壳，同时更新按钮选中态。
   const track = document.getElementById("deviceCarouselTrack");
   const prevBtn = document.getElementById("carouselPrev");
   const nextBtn = document.getElementById("carouselNext");
@@ -337,6 +355,7 @@ function initDeviceCarousel() {
 }
 
 async function run() {
+  // 主交互：请求后端、渲染结果、刷新编辑区和成本区，并处理异常提示。
   if (isRunning) return;
   isRunning = true;
   const prevBtnText = runBtn.innerText;

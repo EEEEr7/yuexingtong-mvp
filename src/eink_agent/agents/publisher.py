@@ -1,4 +1,11 @@
 from __future__ import annotations
+"""
+Publisher：将内容包渲染为 480x800 双主题 HTML。
+
+主题定义：
+- dark：黑底白字（星穹黑）；
+- light：白底墨字（雾灰白）。
+"""
 
 import html
 from datetime import datetime
@@ -10,9 +17,11 @@ from eink_agent.schemas.content import ContentPackage, Trace
 
 class Publisher(BaseAgent):
     def __init__(self, *, logger: object | None = None) -> None:
+        """初始化发布器。"""
         super().__init__(agent_key="publisher", logger=logger)
 
     def _run(self, input_data: object, trace: Trace) -> Tuple[str, str]:
+        """校验输入并输出 (dark_html, light_html) 两套页面。"""
         if isinstance(input_data, ContentPackage):
             pkg = input_data
         elif isinstance(input_data, dict):

@@ -1,4 +1,12 @@
 from __future__ import annotations
+"""
+成本统计模块（线程/协程安全）。
+
+记录维度：
+- LLM 调用次数、token、耗时；
+- Embedding 调用次数、token、耗时；
+- 外部 API 总耗时。
+"""
 
 import time
 from contextvars import ContextVar
@@ -6,6 +14,7 @@ from typing import Any, Dict, Optional
 
 
 def _empty_snapshot() -> Dict[str, Any]:
+    """创建一份空白统计快照。"""
     return {
         "llm": {"calls": 0, "tokens": None, "wallMsTotal": 0.0},
         "embedding": {"calls": 0, "tokens": None, "wallMsTotal": 0.0},
@@ -17,10 +26,12 @@ _cost_ctx: ContextVar[Optional[Dict[str, Any]]] = ContextVar("eink_cost_ctx", de
 
 
 def reset_costs() -> None:
+    """重置当前上下文中的成本统计。"""
     _cost_ctx.set(_empty_snapshot())
 
 
 def snapshot_costs() -> Dict[str, Any]:
+    """读取当前统计并返回浅拷贝，防止外部误改内部状态。"""
     snap = _cost_ctx.get()
     if snap is None:
         snap = _empty_snapshot()
@@ -34,6 +45,7 @@ def snapshot_costs() -> Dict[str, Any]:
 
 
 def _add_tokens(bucket: Dict[str, Any], n: Optional[int]) -> None:
+    """将 token 增量安全累加到目标桶（忽略非法值/非正数）。"""
     if n is None:
         return
     try:
@@ -102,6 +114,7 @@ def _extract_usage_tokens(usage: Any) -> Optional[int]:
 
 
 def record_llm_call(*, wall_ms: float, usage: Any) -> None:
+    """记录一次 LLM 调用的耗时与 token。"""
     snap = _cost_ctx.get()
     if snap is None:
         snap = _empty_snapshot()
@@ -113,6 +126,7 @@ def record_llm_call(*, wall_ms: float, usage: Any) -> None:
 
 
 def record_embedding_call(*, wall_ms: float, usage: Any) -> None:
+    """记录一次 Embedding 调用的耗时与 token。"""
     snap = _cost_ctx.get()
     if snap is None:
         snap = _empty_snapshot()
@@ -124,4 +138,5 @@ def record_embedding_call(*, wall_ms: float, usage: Any) -> None:
 
 
 def perf_ms() -> float:
+    """统一性能计时基准（毫秒）。"""
     return time.perf_counter() * 1000.0

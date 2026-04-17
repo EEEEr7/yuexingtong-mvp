@@ -1,4 +1,11 @@
 from __future__ import annotations
+"""
+单文件演示版服务入口（历史兼容）。
+
+说明：
+- 该文件同时提供内嵌前端页面与 API；
+- 目前主路径是 frontend/ + backend/app.py，本文件仍保留用于兼容旧演示方式。
+"""
 
 import os
 import sys
@@ -36,11 +43,13 @@ app.add_middleware(
 
 
 class RunRequest(BaseModel):
+    """运行请求体：输入 URL 或纯文本。"""
     input: str
 
 
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
+    """返回内嵌演示页（便于单文件快速启动）。"""
     return """<!doctype html>
 <html lang="zh-CN">
   <head>
@@ -553,6 +562,12 @@ def index() -> str:
 
 @app.post("/api/run")
 def run_api(req: RunRequest) -> Any:
+    """
+    运行 Agent Flow 并返回结构化结果。
+
+    返回字段与 backend/app.py 保持一致，包含：
+    - package / indexHtml / indexHtmlLight / trace / cost。
+    """
     try:
         result = run_agent_flow_safe(req.input, out_dir=os.getenv("OUT_DIR", "output"))
         if not result.get("ok"):

@@ -1,4 +1,11 @@
 from __future__ import annotations
+"""
+Collector：负责输入采集与文本清洗。
+
+支持两种输入：
+- URL：抓取页面并抽取正文文本；
+- direct-text：直接使用文本输入（不依赖网络与 bs4）。
+"""
 
 import re
 import os
@@ -13,10 +20,19 @@ from eink_agent.schemas.content import CollectorResult, Trace
 
 class Collector(BaseAgent):
     def __init__(self, *, logger: Optional[object] = None, max_chars: int = 12000) -> None:
+        """初始化采集器；max_chars 用于控制后续 LLM 输入规模。"""
         super().__init__(agent_key="collector", logger=logger)
         self.max_chars = max_chars
 
     def _run(self, input_data: object, trace: Trace) -> CollectorResult:
+        """
+        执行采集逻辑并返回 CollectorResult。
+
+        关键策略：
+        - URL 路径：请求页面 -> 解析正文 -> 去噪 -> 截断；
+        - 文本路径：标准化空白 -> 截断；
+        - 两条路径都将关键事件写入 trace。
+        """
         if not isinstance(input_data, str) or not input_data.strip():
             raise ValueError("Collector 输入必须是非空字符串（URL 或纯文本）")
 

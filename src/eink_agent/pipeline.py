@@ -1,4 +1,13 @@
 from __future__ import annotations
+"""
+流水线编排模块。
+
+负责：
+- 串联 Collector / Refiner / Publisher；
+- 统一构建 ContentPackage；
+- 统一收集并返回 trace 与 cost；
+- 统一落盘输出（json + dark/light html）。
+"""
 
 import json
 import os
@@ -14,6 +23,7 @@ from eink_agent.schemas.content import CollectorResult, ContentPackage, RefinerR
 
 
 def build_content_package(*, collected: CollectorResult, refined: RefinerResult, trace: Trace) -> ContentPackage:
+    """将采集结果与精炼结果合并为标准内容包（Schema 层最终对象）。"""
     return ContentPackage(
         id=uuid.uuid4().hex,
         title=refined.title,
@@ -34,20 +44,25 @@ def run_agent_flow_safe(url: str, *, out_dir: str = "output") -> Dict[str, objec
     """
     os.makedirs(out_dir, exist_ok=True)
 
+    # trace 在全链路贯穿，用于“成功可解释、失败可定位”。
     trace: Trace = {}
     reset_costs()
     flow_t0 = time.perf_counter()
     try:
+        # 1) 采集阶段：URL 抽取正文或直接使用纯文本输入。
         collector = Collector()
         collected: CollectorResult = collector.execute(url, trace=trace)
 
+        # 2) 精炼阶段：产出 title/summary/tags/confidence。
         refiner = Refiner()
         refined = refiner.execute(collected, trace=trace)
 
+        # 3) 组装内容包并渲染双主题 HTML。
         pkg = build_content_package(collected=collected, refined=refined, trace=trace)
         publisher = Publisher()
         index_html, index_html_light = publisher.execute(pkg, trace=trace)
 
+        # 计算链路耗时并汇总 token/call/wall 时长统计。
         flow_wall_ms = (time.perf_counter() - flow_t0) * 1000.0
         cost = snapshot_costs()
         cost["flowWallMs"] = round(flow_wall_ms, 2)
@@ -110,6 +125,7 @@ def run_agent_flow(url: str, *, out_dir: str = "output") -> Tuple[ContentPackage
       - html string (index.html)
       - output paths
     """
+    # 非 safe 版本：将失败转换为异常，供 CLI 场景直接退出。
     result = run_agent_flow_safe(url, out_dir=out_dir)
     if not result.get("ok"):
         raise RuntimeError(result.get("error"))

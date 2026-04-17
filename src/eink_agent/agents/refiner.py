@@ -1,4 +1,13 @@
 from __future__ import annotations
+"""
+Refiner：语义精炼核心模块。
+
+职责：
+- 调用 LLM 生成主标题/副标题/摘要/标签/置信度；
+- 对标题与标签做工程化清洗（去噪、去重、去“蠢”）；
+- 当标签不足时使用 Embedding + MMR 做补足；
+- 在失败场景下回退到本地启发式策略，保证链路可演示。
+"""
 
 import json
 import os
@@ -598,6 +607,7 @@ def _decorate_title_with_emoji(title: str, *, tags: list[str], source_text: str)
 
 
 class Refiner(BaseAgent):
+    """内容精炼 Agent：对 Collector 输出文本进行结构化生成与质量治理。"""
     def __init__(
         self,
         *,
@@ -608,6 +618,7 @@ class Refiner(BaseAgent):
         max_text_chars: int = 12000,
         retry_count: int = 2,
     ) -> None:
+        """初始化模型连接配置与输入长度/重试策略。"""
         super().__init__(agent_key="refiner", logger=logger)
 
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -620,6 +631,13 @@ class Refiner(BaseAgent):
             raise ValueError("缺少 OPENAI_API_KEY（或传入 api_key）")
 
     def _run(self, input_data: object, trace: Trace) -> RefinerResult:
+        """
+        主执行逻辑：
+        1) 读取并校验 source/text；
+        2) 组装 prompt，调用 LLM；
+        3) 解析 JSON 并做标题/标签/置信度后处理；
+        4) 异常时进入 fallback，保证稳定产出。
+        """
         if isinstance(input_data, CollectorResult):
             source = input_data.source
             text = input_data.text
